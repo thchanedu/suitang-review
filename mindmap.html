@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>隋唐治世 · 三帝腦圖</title>
+<style>
+  :root{
+    --fg:#1f2937; --muted:#6b7280; --border:#e5e7eb; --card:#ffffff; --bg:#f3f4f6;
+    --accent:#4f46e5;
+  }
+  *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body{ margin:0; padding:0; }
+  body{ color:var(--fg); background:var(--bg); font-family:"PingFang TC","Microsoft JhengHei","Noto Sans TC",sans-serif; font-size:15px; line-height:1.5; -webkit-text-size-adjust:100%; }
+  .wrap{ max-width:1040px; margin:0 auto; padding:20px 16px 48px; }
+
+  header{ text-align:center; margin-bottom:16px; }
+  h1{ font-size:24px; margin:0; letter-spacing:1px; }
+  .sub{ color:var(--muted); font-size:13.5px; margin-top:4px; }
+
+  .tabs{ display:flex; gap:10px; justify-content:center; flex-wrap:wrap; margin:16px 0 8px; }
+  .tab{
+    appearance:none; -webkit-appearance:none; background:var(--card); color:var(--muted);
+    border:1.5px solid var(--border); border-radius:999px; padding:10px 22px; font-size:15.5px; cursor:pointer;
+    font-family:inherit; transition:all .12s; min-height:46px; font-weight:600;
+  }
+  .tab.active{ color:#fff; border-color:transparent; }
+  .tab[data-e="sui"].active{ background:#2563eb; }
+  .tab[data-e="tang"].active{ background:#ea580c; }
+  .tab[data-e="xuan"].active{ background:#7c3aed; }
+  .tab[data-e="all"].active{ background:#4b5563; }
+
+  .map{ display:none; position:relative; width:100%; max-width:1000px; margin:0 auto; }
+  .map.active{ display:block; }
+
+  .stage{ position:relative; width:100%; padding-bottom:82%; }
+  .stage > svg{ position:absolute; inset:0; width:100%; height:100%; }
+  .node{ position:absolute; transform:translate(-50%,-50%); }
+  .center-node{
+    width:150px; height:150px; border-radius:50%; color:#fff;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center;
+    box-shadow:0 8px 24px rgba(0,0,0,.22); z-index:3;
+  }
+  .center-node .nm{ font-size:23px; font-weight:800; letter-spacing:1px; }
+  .center-node .er{ font-size:14px; opacity:.92; margin-top:2px; }
+  .center-node .yr{ font-size:11.5px; opacity:.8; margin-top:3px; }
+
+  .branch-card{
+    position:absolute; transform:translate(-50%,-50%);
+    width:280px; background:var(--card); border:1.5px solid var(--border); border-radius:13px;
+    box-shadow:0 4px 14px rgba(0,0,0,.1); padding:11px 13px 12px; z-index:2;
+  }
+  .branch-card .bt{
+    font-size:15.5px; font-weight:700; display:flex; align-items:center; gap:7px; margin-bottom:6px;
+  }
+  .branch-card .bt .dot{ width:10px; height:10px; border-radius:50%; flex:none; }
+  .branch-card ul{ list-style:none; margin:0; padding:0; }
+  .branch-card li{ font-size:12.8px; color:var(--fg); padding:2.5px 0 2.5px 13px; position:relative; line-height:1.42; }
+  .branch-card li::before{ content:'·'; position:absolute; left:2px; color:inherit; font-weight:800; }
+
+  .legend{ text-align:center; color:var(--muted); font-size:12.5px; margin:14px 0 0; }
+
+  @media (max-width:700px){
+    .branch-card{ width:230px; }
+    .branch-card li{ font-size:11.5px; }
+    .center-node{ width:128px; height:128px; }
+    .center-node .nm{ font-size:20px; }
+  }
+
+  @media print{
+    .tabs, .legend{ display:none !important; }
+    .map{ display:block !important; margin-bottom:10px; }
+    body{ background:#fff; }
+    .stage{ page-break-after:always; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>隋唐治世 · 三帝腦圖</h1>
+    <div class="sub">甲部單元四｜開皇之治 · 貞觀之治 · 開元之治</div>
+  </header>
+
+  <div class="tabs" id="tabs">
+    <button class="tab active" data-e="sui">隋文帝</button>
+    <button class="tab" data-e="tang">唐太宗</button>
+    <button class="tab" data-e="xuan">唐玄宗</button>
+    <button class="tab" data-e="all">三帝總覽</button>
+  </div>
+
+  <div class="map active" id="map-sui"></div>
+  <div class="map" id="map-tang"></div>
+  <div class="map" id="map-xuan"></div>
+
+  <div class="legend">六枝＝政治｜經濟｜軍事｜文教律法｜晚年失政｜正面評價（可 Ctrl／⌘＋P 列印）</div>
+</div>
+
+<script>
+const CATS = [
+  { key:'politics', title:'政治', color:'#ef4444', angle:-90 },
+  { key:'economy',  title:'經濟', color:'#f59e0b', angle:-30 },
+  { key:'military', title:'軍事', color:'#3b82f6', angle: 30 },
+  { key:'culture',  title:'文教律法', color:'#8b5cf6', angle: 90 },
+  { key:'decline',  title:'晚年失政', color:'#6b7280', angle:150 },
+  { key:'praise',   title:'正面評價', color:'#16a34a', angle:-150 },
+];
+
+const DATA = {
+  sui: {
+    name:'隋文帝', era:'開皇之治', years:'公元581-604年', color:'#2563eb',
+    branches:{
+      politics:['中央：創「五省六曹制」整合北朝官制','創「多相制」三省長官並列宰相','地方：開創「州縣二級制」裁1/3冗官、廢500郡','用人：高熲、蘇威；地方長官述職'],
+      economy:['戶籍：「大索貌閱」查戶口','「輸籍法」增編戶160萬（戶400萬→900萬）','田制：「均田制」為民制產','稅制：「租庸調制」輕徭薄賦','倉運：官倉義倉；開「廣通渠」'],
+      military:['兵制：確立「府兵制」兵農合一','征戰：50萬平陳統一南北','外交：長孫晟離間、和親突厥','建設：修長城、屯田'],
+      culture:['科舉：廢九品中正制、開秀才明經科','官學：設國子監、太學','文教：廣收圖書、《新禮》《雅樂》','律法：《開皇律》廢酷刑'],
+      decline:['貶殺功臣（高熲、楊勇）','不聽納諫、廷杖諫臣','易儲失當（廢楊勇立楊廣）'],
+      praise:['結束360年分裂','國家富足、倉儲五六十年','制度為唐奠基','勤政節儉、以民為本'],
+    }
+  },
+  tang: {
+    name:'唐太宗', era:'貞觀之治', years:'公元627-649年', color:'#ea580c',
+    branches:{
+      politics:['中央：沿三省六部、增設「政事堂」','「同中書門下平章事」共議','地方：十道監察區、「黜陟大使」','用人唯才（魏徵／李靖／房玄齡）'],
+      economy:['戶籍：三年一造籍、增殖人口（約300萬戶）','田制：均田加「寬鄉狹鄉」、婦女不授田','稅制：「四十稅一」、天災損免','節儉：遣散宮女3000、《帝範》'],
+      military:['兵制：643折衝府、內重外輕、兵將分離','征戰：敗東突厥、滅高昌、平吐谷渾','外交：「天可汗制度」、文成公主和親','建設：置西域都護府'],
+      culture:['科舉：明經進士科、吏部釋褐試','官學：國子監「六學」、1200間','文教：弘文館文學館、《五經正義》','律法：《唐律》五複奏、慎刑寬簡'],
+      decline:['魏徵死後不願納諫','放任皇子宮鬥、易儲李治→武氏干政','奢侈迷信（飛山宮、翠微宮）'],
+      praise:['四夷賓服、「天可汗」','國家富足（米價兩錢、夜不閉戶）','制度為後世奠基','虛懷納諫（魏徵200餘事）'],
+    }
+  },
+  xuan: {
+    name:'唐玄宗', era:'開元之治', years:'公元713-741年', color:'#7c3aed',
+    branches:{
+      politics:['中央：重振三省六部、恢復政事堂','宰相人數限於3人內','地方：十五道監察區、「採訪使」','京官外官互調、澄清吏治'],
+      economy:['戶籍：宇文融清查、收80萬隱戶（天寶900萬戶）','田制：重整均田、興修水利50多項','稅制：沿用租庸調','節儉：12000僧尼還俗、禁建佛寺'],
+      military:['兵制：十大兵鎮、節度使統兵48萬','「彍騎制」募兵13萬','征戰：敗契丹、吐蕃、突厥','外交：維持天可汗制度'],
+      culture:['科舉：重開釋褐試、取錄限100人','文教：集賢院收書48000卷','《開元禮》、《唐六典》','梨園《霓裳羽衣曲》'],
+      decline:['用人失當：李林甫、楊國忠','疏於政事、沉迷女色（楊貴妃）','安祿山掌三鎮節度使18萬','奢侈迷信、賞賜過度'],
+      praise:['國家富足（891萬戶、倉廩豐實）','知人善任（姚崇、宋璟）','政治重回軌道'],
+    }
+  }
+};
+
+const CX=50, CY=50, R=37;   // 以 % 為單位
+
+function pos(angleDeg){
+  const a = angleDeg*Math.PI/180;
+  return { x:CX + R*Math.cos(a), y:CY + R*Math.sin(a) };
+}
+
+function renderEmperor(key, container){
+  const d = DATA[key];
+  container.innerHTML = '';
+  const stage = document.createElement('div');
+  stage.className = 'stage';
+
+  // SVG 連接線
+  let paths = '';
+  CATS.forEach(c=>{
+    const p = pos(c.angle);
+    const s = pos(c.angle);
+    const sx = CX + 8*Math.cos(c.angle*Math.PI/180);
+    const sy = CY + 8*Math.sin(c.angle*Math.PI/180);
+    const ex = CX + 33*Math.cos(c.angle*Math.PI/180);
+    const ey = CY + 33*Math.sin(c.angle*Math.PI/180);
+    paths += `<line x1="${sx}%" y1="${sy}%" x2="${ex}%" y2="${ey}%" stroke="${c.color}" stroke-width="3" opacity=".55"/>`;
+  });
+  const svg = `<svg viewBox="0 0 100 100" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">${paths}</svg>`;
+  stage.innerHTML = svg;
+
+  // 中心節點
+  const center = document.createElement('div');
+  center.className = 'node center-node';
+  center.style.left = CX+'%';
+  center.style.top = CY+'%';
+  center.style.background = d.color;
+  center.innerHTML = `<div class="nm">${d.name}</div><div class="er">${d.era}</div><div class="yr">${d.years}</div>`;
+  stage.appendChild(center);
+
+  // 分支卡片
+  CATS.forEach(c=>{
+    const p = pos(c.angle);
+    const items = d.branches[c.key] || [];
+    const card = document.createElement('div');
+    card.className = 'branch-card';
+    card.style.left = p.x+'%';
+    card.style.top = p.y+'%';
+    card.innerHTML = `<div class="bt"><span class="dot" style="background:${c.color}"></span>${c.title}</div><ul>` +
+      items.map(it=>`<li>${it}</li>`).join('') + `</ul>`;
+    stage.appendChild(card);
+  });
+
+  container.appendChild(stage);
+}
+
+renderEmperor('sui', document.getElementById('map-sui'));
+renderEmperor('tang', document.getElementById('map-tang'));
+renderEmperor('xuan', document.getElementById('map-xuan'));
+
+/* tab 切換 */
+const maps = { sui:'map-sui', tang:'map-tang', xuan:'map-xuan' };
+document.getElementById('tabs').addEventListener('click', e=>{
+  const b = e.target.closest('.tab');
+  if(!b) return;
+  const mode = b.dataset.e;
+  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active', t===b));
+  ['sui','tang','xuan'].forEach(k=>{
+    document.getElementById(maps[k]).classList.toggle('active', mode==='all' || mode===k);
+  });
+});
+</script>
+</body>
+</html>
