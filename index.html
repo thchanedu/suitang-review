@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>隋唐治世 · 措施配對遊戲</title>
+<style>
+  :root{ --ok:#16a34a; --bad:#ef4444; }
+  *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body{ margin:0; padding:0; }
+  body{ color:var(--foreground); font-size:16px; line-height:1.45; }
+  .game{ width:100%; max-width:760px; padding:6px 0 12px; }
+
+  header{ margin-bottom:12px; }
+  .htop{ display:flex; align-items:flex-end; justify-content:space-between; flex-wrap:wrap; gap:8px; }
+  h1{ font-size:21px; margin:0; letter-spacing:.5px; }
+  .sub{ color:var(--muted-foreground); font-size:13px; margin:2px 0 0; }
+  .stats{ display:flex; gap:8px; flex-wrap:wrap; }
+  .pill{ background:var(--card); border:1px solid var(--border); border-radius:999px; padding:6px 13px; font-size:13.5px; color:var(--muted-foreground); }
+  .pill b{ color:var(--foreground); }
+  .pill.wrong b{ color:var(--bad); }
+
+  .tabs{ display:flex; gap:10px; margin-top:12px; flex-wrap:wrap; }
+  .tab{
+    appearance:none; -webkit-appearance:none; background:var(--card); color:var(--muted-foreground);
+    border:1px solid var(--border); border-radius:11px; padding:10px 18px; font-size:14.5px; cursor:pointer;
+    font-family:inherit; transition:all .12s; touch-action:manipulation; min-height:46px;
+  }
+  .tab.active{ background:var(--accent); color:#fff; border-color:var(--accent); }
+
+  .catfilter{ display:flex; gap:8px; margin:12px 0; flex-wrap:wrap; align-items:center; }
+  .catfilter .lbl{ font-size:13px; color:var(--muted-foreground); margin-right:2px; }
+  .cat{
+    appearance:none; -webkit-appearance:none; background:var(--card); color:var(--muted-foreground);
+    border:1px solid var(--border); border-radius:999px; padding:8px 16px; font-size:14px; cursor:pointer;
+    font-family:inherit; transition:all .12s; touch-action:manipulation; min-height:42px;
+  }
+  .cat.active{ background:var(--accent); color:#fff; border-color:var(--accent); }
+
+  .buckets{ display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:14px; }
+  .bucket{
+    background:var(--card); border:2px solid var(--border); border-radius:16px;
+    padding:12px 12px 14px; position:relative; transition:border-color .15s, box-shadow .15s;
+    min-height:210px; cursor:pointer; user-select:none; touch-action:manipulation;
+  }
+  .bucket::before{ content:''; position:absolute; top:0; left:0; right:0; height:5px; border-radius:16px 16px 0 0; }
+  .bucket[data-e="sui"]::before{ background:#3b82f6; }
+  .bucket[data-e="tang"]::before{ background:#f59e0b; }
+  .bucket[data-e="xuan"]::before{ background:#8b5cf6; }
+  .bucket.hover{ border-color:var(--accent); }
+  .bucket.shake{ animation:shake .42s; border-color:var(--bad); }
+  .bucket.flashok{ animation:flashok .6s; }
+  @keyframes shake{ 0%,100%{transform:translateX(0)} 20%{transform:translateX(-8px)} 40%{transform:translateX(8px)} 60%{transform:translateX(-6px)} 80%{transform:translateX(6px)} }
+  @keyframes flashok{ 0%{box-shadow:0 0 0 4px var(--ok)} 100%{box-shadow:0 0 0 0 transparent} }
+
+  .avatar{ width:74px; height:74px; margin:2px auto 6px; }
+  .avatar svg{ width:100%; height:100%; display:block; }
+  .bname{ font-weight:700; font-size:16.5px; text-align:center; margin-top:2px; }
+  .breign{ color:var(--muted-foreground); font-size:12.5px; text-align:center; margin:1px 0 6px; }
+  .bcount{ font-size:12px; color:var(--muted-foreground); margin-bottom:7px; text-align:center; }
+  .bcount b{ color:var(--foreground); }
+  .collected{ display:flex; flex-wrap:wrap; gap:5px; justify-content:center; }
+  .chip{ font-size:12.5px; padding:4px 9px; border-radius:999px; border:1.5px solid; background:var(--card); }
+
+  .selhint{ font-size:13.5px; color:var(--muted-foreground); margin:0 0 10px; min-height:20px; }
+  .selhint b{ color:var(--accent); }
+
+  .pool{ display:grid; grid-template-columns:repeat(auto-fill, minmax(160px, 1fr)); gap:12px; }
+  .card{
+    appearance:none; -webkit-appearance:none; background:var(--card);
+    border:2px solid var(--border); border-radius:14px;
+    padding:13px 14px; font-size:15.5px; color:var(--foreground); cursor:grab;
+    display:flex; align-items:center; gap:8px; text-align:left;
+    transition:transform .12s, border-color .12s, box-shadow .12s;
+    font-family:inherit; min-height:60px; position:relative;
+    box-shadow:0 3px 8px rgba(0,0,0,.16), 0 1px 2px rgba(0,0,0,.08);
+    touch-action:manipulation; user-select:none; -webkit-user-select:none;
+  }
+  .card::before{
+    content:''; position:absolute; inset:4px; border:1px solid var(--border);
+    border-radius:10px; pointer-events:none;
+  }
+  .card:hover{ border-color:var(--accent); }
+  .card.selected{ border-color:var(--accent); box-shadow:0 6px 16px rgba(0,0,0,.24), 0 0 0 3px var(--accent); transform:translateY(-3px); cursor:grabbing; }
+  .card.reveal{ box-shadow:0 0 0 3px var(--rv, var(--accent)); }
+  .cardtext{ flex:1; position:relative; z-index:1; }
+  .tag{ flex:none; font-size:11px; padding:2px 7px; border-radius:99px; border:1px solid var(--border); color:var(--muted-foreground); position:relative; z-index:1; }
+
+  .controls{ display:flex; gap:10px; margin-top:14px; flex-wrap:wrap; }
+  .btn{
+    appearance:none; -webkit-appearance:none; background:var(--card); color:var(--foreground);
+    border:1px solid var(--border); border-radius:11px; padding:11px 19px; font-size:14.5px; cursor:pointer;
+    font-family:inherit; transition:border-color .12s; touch-action:manipulation; min-height:46px;
+  }
+  .btn:hover{ border-color:var(--accent); }
+  .btn.primary{ background:var(--accent); color:#fff; border-color:var(--accent); }
+  .legend{ margin-top:12px; font-size:12.5px; color:var(--muted-foreground); display:flex; gap:16px; flex-wrap:wrap; }
+
+  /* ---- mode 2 ---- */
+  .qcard{ background:var(--card); border:1px solid var(--border); border-radius:16px; padding:20px 22px; margin-top:6px; }
+  .qprog{ font-size:13px; color:var(--muted-foreground); }
+  .qtitle{ font-size:25px; font-weight:700; margin:10px 0 18px; letter-spacing:.5px; }
+  .qline{ margin-bottom:16px; }
+  .qline.dimmed{ opacity:.35; pointer-events:none; }
+  .qlabel{ display:block; font-size:14px; color:var(--muted-foreground); margin-bottom:9px; }
+  .qlabel b{ color:var(--foreground); }
+  .qbtns{ display:flex; gap:10px; flex-wrap:wrap; }
+  .qbtn{
+    appearance:none; -webkit-appearance:none; background:var(--card); color:var(--foreground);
+    border:1.5px solid var(--border); border-radius:13px; padding:10px 18px; font-size:16px; cursor:pointer;
+    font-family:inherit; display:inline-flex; align-items:center; gap:9px; transition:border-color .12s;
+    touch-action:manipulation; min-height:52px; box-shadow:0 2px 5px rgba(0,0,0,.12);
+  }
+  .qbtn:hover{ border-color:var(--accent); }
+  .qbtn:disabled{ cursor:default; }
+  .qbtn .avatar{ width:34px; height:34px; margin:0; flex:none; }
+  .qbtn.correct{ border-color:var(--ok); background:rgba(22,163,74,.14); }
+  .qbtn.wrongbtn{ animation:shake .42s; border-color:var(--bad); }
+  .qnote{ margin-top:6px; padding:12px 15px; border-radius:11px; font-size:14px; line-height:1.6; background:var(--card); border:1.5px dashed var(--border); }
+  .qnote b{ color:var(--accent); }
+  .qnext{ margin-top:16px; }
+  .qdone{ text-align:center; padding:24px 0; }
+
+  .hidden{ display:none !important; }
+
+  .toast{
+    position:fixed; left:50%; bottom:26px; transform:translateX(-50%) translateY(20px);
+    background:var(--foreground); color:var(--card); padding:11px 19px; border-radius:12px; font-size:14.5px;
+    opacity:0; pointer-events:none; transition:opacity .2s, transform .2s; max-width:90%; z-index:50;
+  }
+  .toast.show{ opacity:1; transform:translateX(-50%) translateY(0); }
+
+  .overlay{
+    position:fixed; inset:0; background:rgba(0,0,0,.55); display:flex; align-items:center; justify-content:center;
+    z-index:100; opacity:1; transition:opacity .25s;
+  }
+  .overlay.hidden{ opacity:0; pointer-events:none; }
+  .panel{ background:var(--card); color:var(--foreground); border-radius:18px; padding:28px 32px; max-width:440px; text-align:center; box-shadow:0 12px 44px rgba(0,0,0,.32); }
+  .panel h2{ margin:0 0 6px; font-size:24px; }
+  .panel .score{ font-size:16px; color:var(--muted-foreground); margin:12px 0; }
+  .panel .score b{ color:var(--foreground); }
+
+  @media (max-width:600px){
+    .buckets{ grid-template-columns:1fr; }
+    .pool{ grid-template-columns:repeat(auto-fill, minmax(140px,1fr)); }
+  }
+</style>
+</head>
+<body>
+<div class="game">
+  <header>
+    <div class="htop">
+      <div>
+        <h1>隋唐治世 · 措施配對遊戲</h1>
+        <div class="sub">開皇／貞觀／開元之治的措施（制度／政策）分類操練</div>
+      </div>
+      <div class="stats" id="stats-m1">
+        <span class="pill">剩餘 <b id="stat-remaining">36</b>/<span id="stat-total">36</span></span>
+        <span class="pill wrong">答錯 <b id="stat-wrong">0</b></span>
+      </div>
+      <div class="stats hidden" id="stats-m2">
+        <span class="pill">第 <b id="q-prog-pill">1</b>/6 題</span>
+        <span class="pill wrong">答錯 <b id="q-wrong-pill">0</b></span>
+      </div>
+    </div>
+    <div class="tabs">
+      <button class="tab active" id="tab-m1">① 專屬措施</button>
+      <button class="tab" id="tab-m2">② 共同措施（創立／改良）</button>
+    </div>
+  </header>
+
+  <!-- ============ MODE 1 ============ -->
+  <div id="mode1">
+    <div class="catfilter">
+      <span class="lbl">範疇：</span>
+      <button class="cat active" data-cat="全部">全部</button>
+      <button class="cat" data-cat="政治">政治</button>
+      <button class="cat" data-cat="經濟">經濟</button>
+      <button class="cat" data-cat="軍事">軍事</button>
+      <button class="cat" data-cat="文教">文教</button>
+    </div>
+
+    <div class="buckets" id="buckets">
+      <div class="bucket" data-e="sui">
+        <div class="avatar" id="av-sui"></div>
+        <div class="bname">隋文帝</div>
+        <div class="breign">開皇之治</div>
+        <div class="bcount">已收 <b id="count-sui">0</b>/<span id="tot-sui">12</span></div>
+        <div class="collected" id="collected-sui"></div>
+      </div>
+      <div class="bucket" data-e="tang">
+        <div class="avatar" id="av-tang"></div>
+        <div class="bname">唐太宗</div>
+        <div class="breign">貞觀之治</div>
+        <div class="bcount">已收 <b id="count-tang">0</b>/<span id="tot-tang">12</span></div>
+        <div class="collected" id="collected-tang"></div>
+      </div>
+      <div class="bucket" data-e="xuan">
+        <div class="avatar" id="av-xuan"></div>
+        <div class="bname">唐玄宗</div>
+        <div class="breign">開元之治</div>
+        <div class="bcount">已收 <b id="count-xuan">0</b>/<span id="tot-xuan">12</span></div>
+        <div class="collected" id="collected-xuan"></div>
+      </div>
+    </div>
+
+    <div class="selhint" id="sel-hint">點選一張卡，再點選對應的皇帝</div>
+    <div class="pool" id="pool"></div>
+
+    <div class="controls">
+      <button class="btn primary" id="btn-reset">↻ 重新開始</button>
+    </div>
+    <div class="legend">
+      <span>卡片角標＝範疇</span>
+      <span>點卡選取 → 點皇帝放入</span>
+    </div>
+  </div>
+
+  <!-- ============ MODE 2 ============ -->
+  <div id="mode2" class="hidden">
+    <div class="qcard">
+      <div class="qprog" id="q-prog">第 1 / 6 題</div>
+      <div class="qtitle" id="q-title">三省六部制</div>
+      <div class="qline" id="q-stage1">
+        <div class="qlabel">① 誰<b>創立／推行</b>了這項措施？</div>
+        <div class="qbtns" id="q-btns-1"></div>
+      </div>
+      <div class="qline dimmed" id="q-stage2">
+        <div class="qlabel">② 誰<b>改良／完善</b>了這項措施？</div>
+        <div class="qbtns" id="q-btns-2"></div>
+      </div>
+      <div class="qnote hidden" id="q-note"></div>
+      <button class="btn primary qnext hidden" id="q-next">下一題 →</button>
+      <div class="qdone hidden" id="q-done">
+        <h2 style="margin:0 0 6px;">🎉 共同措施全部完成！</h2>
+        <div style="color:var(--muted-foreground); margin:8px 0;">答錯 <b id="q-done-wrong" style="color:var(--foreground);">0</b> 次</div>
+        <button class="btn primary" id="btn-m2-again">↻ 再玩一次</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<div class="overlay hidden" id="overlay">
+  <div class="panel">
+    <h2>🎉 全部完成！</h2>
+    <div class="score">答錯 <b id="final-wrong">0</b> 次　·　用時 <b id="final-time">0</b> 秒</div>
+    <button class="btn primary" id="btn-again">↻ 再玩一次</button>
+  </div>
+</div>
+
+<script>
+const EMPERORS = {
+  sui:  { name:'隋文帝', reign:'開皇之治', color:'#3b82f6', soft:'rgba(59,130,246,.14)' },
+  tang: { name:'唐太宗', reign:'貞觀之治', color:'#f59e0b', soft:'rgba(245,158,11,.15)' },
+  xuan: { name:'唐玄宗', reign:'開元之治', color:'#8b5cf6', soft:'rgba(139,92,246,.15)' },
+};
+
+/* ---- 卡通頭像（SVG） ---- */
+const AVATARS = {
+  sui: `<svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+    <path d="M22,120 C22,90 44,81 60,81 C76,81 98,90 98,120 Z" fill="#3b82f6"/>
+    <path d="M51,84 L60,99 L69,84 L60,89 Z" fill="#ffffff" opacity=".5"/>
+    <rect x="52" y="60" width="16" height="16" rx="5" fill="#e3a87c"/>
+    <circle cx="60" cy="42" r="27" fill="#f6cda0"/>
+    <circle cx="33" cy="45" r="5.5" fill="#f6cda0"/>
+    <circle cx="87" cy="45" r="5.5" fill="#f6cda0"/>
+    <path d="M37,49 C37,72 47,76 60,76 C73,76 83,72 83,49 C83,56 72,61 60,61 C48,61 37,56 37,49 Z" fill="#e2e2e2"/>
+    <path d="M52,52 Q60,57 68,52" stroke="#8a5a33" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+    <circle cx="47" cy="40" r="3.8" fill="#3a3a3a"/>
+    <circle cx="73" cy="40" r="3.8" fill="#3a3a3a"/>
+    <path d="M40,31 L55,35" stroke="#5a3a22" stroke-width="3" stroke-linecap="round"/>
+    <path d="M80,31 L65,35" stroke="#5a3a22" stroke-width="3" stroke-linecap="round"/>
+    <circle cx="40" cy="50" r="4.5" fill="#f28b82" opacity=".35"/>
+    <circle cx="80" cy="50" r="4.5" fill="#f28b82" opacity=".35"/>
+    <rect x="33" y="7" width="54" height="9" rx="3" fill="#2c3e50"/>
+    <rect x="35" y="15" width="50" height="8" rx="3" fill="#34495e"/>
+    <rect x="40" y="20" width="40" height="8" rx="3" fill="#d4a017"/>
+    <circle cx="40" cy="23" r="1.5" fill="#e74c3c"/><circle cx="47" cy="23" r="1.5" fill="#e74c3c"/><circle cx="54" cy="23" r="1.5" fill="#e74c3c"/><circle cx="61" cy="23" r="1.5" fill="#e74c3c"/><circle cx="68" cy="23" r="1.5" fill="#e74c3c"/><circle cx="75" cy="23" r="1.5" fill="#e74c3c"/>
+    <line x1="39" y1="15" x2="35" y2="28" stroke="#e74c3c" stroke-width="2"/>
+    <line x1="81" y1="15" x2="85" y2="28" stroke="#e74c3c" stroke-width="2"/>
+  </svg>`,
+  tang: `<svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+    <path d="M22,120 C22,90 44,81 60,81 C76,81 98,90 98,120 Z" fill="#f59e0b"/>
+    <path d="M51,84 L60,99 L69,84 L60,89 Z" fill="#ffffff" opacity=".5"/>
+    <rect x="52" y="60" width="16" height="16" rx="5" fill="#e3a87c"/>
+    <circle cx="60" cy="42" r="27" fill="#f8d5a8"/>
+    <circle cx="33" cy="45" r="5.5" fill="#f8d5a8"/>
+    <circle cx="87" cy="45" r="5.5" fill="#f8d5a8"/>
+    <path d="M52,52 Q60,58 68,52" stroke="#8a5a33" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+    <circle cx="47" cy="40" r="3.8" fill="#3a3a3a"/>
+    <circle cx="73" cy="40" r="3.8" fill="#3a3a3a"/>
+    <path d="M40,30 L56,34" stroke="#5a3a22" stroke-width="3" stroke-linecap="round"/>
+    <path d="M80,30 L64,34" stroke="#5a3a22" stroke-width="3" stroke-linecap="round"/>
+    <circle cx="40" cy="49" r="4.5" fill="#f28b82" opacity=".35"/>
+    <circle cx="80" cy="49" r="4.5" fill="#f28b82" opacity=".35"/>
+    <path d="M33,22 C33,10 87,10 87,22 L87,26 L33,26 Z" fill="#3a3a3a"/>
+    <rect x="36" y="15" width="48" height="8" rx="3" fill="#f5c542"/>
+    <rect x="33" y="24" width="54" height="6" rx="2" fill="#2c2c2c"/>
+    <circle cx="60" cy="19" r="3" fill="#e74c3c"/>
+  </svg>`,
+  xuan: `<svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+    <path d="M22,120 C22,90 44,81 60,81 C76,81 98,90 98,120 Z" fill="#8b5cf6"/>
+    <path d="M51,84 L60,99 L69,84 L60,89 Z" fill="#ffffff" opacity=".5"/>
+    <rect x="52" y="60" width="16" height="16" rx="5" fill="#e3a87c"/>
+    <circle cx="60" cy="42" r="27" fill="#f6cda0"/>
+    <circle cx="33" cy="45" r="5.5" fill="#f6cda0"/>
+    <circle cx="87" cy="45" r="5.5" fill="#f6cda0"/>
+    <path d="M50,53 Q55,56 60,53 Q65,56 70,53" stroke="#5a3a22" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+    <path d="M55,58 Q60,61 65,58" stroke="#8a5a33" stroke-width="2" fill="none" stroke-linecap="round"/>
+    <circle cx="47" cy="40" r="3.8" fill="#3a3a3a"/>
+    <circle cx="73" cy="40" r="3.8" fill="#3a3a3a"/>
+    <path d="M40,31 L55,34" stroke="#5a3a22" stroke-width="3" stroke-linecap="round"/>
+    <path d="M80,31 L65,34" stroke="#5a3a22" stroke-width="3" stroke-linecap="round"/>
+    <circle cx="40" cy="50" r="4.5" fill="#f28b82" opacity=".35"/>
+    <circle cx="80" cy="50" r="4.5" fill="#f28b82" opacity=".35"/>
+    <path d="M45,22 L45,7 L75,7 L75,22 Z" fill="#6d28d9"/>
+    <path d="M45,22 L75,22 L75,10 L45,10 Z" fill="#7c3aed"/>
+    <rect x="38" y="20" width="44" height="8" rx="3" fill="#d4a017"/>
+    <circle cx="60" cy="12" r="4.5" fill="#f5c542"/>
+  </svg>`,
+};
+
+/* ---- 模式一：專屬措施 ---- */
+const ITEMS = [
+  {t:'廢九品中正制', e:'sui', c:'政治'},
+  {t:'地方長官述職', e:'sui', c:'政治'},
+  {t:'《開皇律》', e:'sui', c:'政治'},
+  {t:'大興城', e:'sui', c:'政治'},
+  {t:'大索貌閱', e:'sui', c:'經濟'},
+  {t:'輸籍法', e:'sui', c:'經濟'},
+  {t:'官倉、義倉', e:'sui', c:'經濟'},
+  {t:'廣通渠', e:'sui', c:'經濟'},
+  {t:'徵求圖書', e:'sui', c:'文教'},
+  {t:'平陳統一', e:'sui', c:'軍事'},
+  {t:'長孫晟離間突厥', e:'sui', c:'軍事'},
+  {t:'修築長城', e:'sui', c:'軍事'},
+  {t:'政事堂', e:'tang', c:'政治'},
+  {t:'全國十道', e:'tang', c:'政治'},
+  {t:'《唐律》', e:'tang', c:'政治'},
+  {t:'吏部釋褐試', e:'tang', c:'政治'},
+  {t:'《氏族志》', e:'tang', c:'政治'},
+  {t:'黜陟大使', e:'tang', c:'政治'},
+  {t:'四十稅一', e:'tang', c:'經濟'},
+  {t:'文學館、弘文館', e:'tang', c:'文教'},
+  {t:'兵將分離', e:'tang', c:'軍事'},
+  {t:'折衝府', e:'tang', c:'軍事'},
+  {t:'安西都護府', e:'tang', c:'軍事'},
+  {t:'文成公主和親吐蕃', e:'tang', c:'軍事'},
+  {t:'裁汰冗官（罷斜封官）', e:'xuan', c:'政治'},
+  {t:'吏部銓選', e:'xuan', c:'政治'},
+  {t:'調京官到地方', e:'xuan', c:'政治'},
+  {t:'十五道監察區', e:'xuan', c:'政治'},
+  {t:'採訪使', e:'xuan', c:'政治'},
+  {t:'宇文融清查戶口', e:'xuan', c:'經濟'},
+  {t:'興修水利', e:'xuan', c:'經濟'},
+  {t:'分段運輸法', e:'xuan', c:'經濟'},
+  {t:'淘汰僧尼', e:'xuan', c:'經濟'},
+  {t:'集賢院', e:'xuan', c:'文教'},
+  {t:'《唐六典》、《開元禮》', e:'xuan', c:'文教'},
+  {t:'霓裳羽衣曲', e:'xuan', c:'文教'},
+];
+
+/* ---- 模式二：共同措施 ---- */
+const SHARED = [
+  {t:'三省六部制', creator:'sui', reformer:'tang',
+   note:'隋＝<b>內史省</b>起草、門下省審核、尚書省執行；唐＝<b>中書省</b>草擬、門下省封駁，並增設<b>政事堂</b>。'},
+  {t:'州縣二級制', creator:'sui', reformer:'tang',
+   note:'隋＝裁撤濫設州郡、行州縣二級；唐＝沿用並加設<b>全國十道</b>監察區。'},
+  {t:'均田制', creator:'sui', reformer:'tang',
+   note:'隋＝男丁永業田20畝、露田80畝，<b>婦女露田40畝</b>；唐＝<b>女子不授田</b>、狹鄉授田減半。'},
+  {t:'租庸調制', creator:'sui', reformer:'tang',
+   note:'隋＝<b>丁年18改21</b>、絹四丈減二丈；唐＝<b>四十稅一</b>、多服力役可減免租調。'},
+  {t:'府兵制', creator:'sui', reformer:'tang',
+   note:'隋＝承北周、<b>寓兵於農</b>；唐＝<b>兵將分離</b>、內重外輕、設折衝府。'},
+  {t:'科舉制', creator:'sui', reformer:'tang',
+   note:'隋＝廢九品中正制、設<b>秀才、明經科</b>；唐＝<b>進士、明經科</b>、吏部釋褐試。'},
+];
+
+const ALL = ITEMS.map((x,i)=>({...x, id:i}));
+const TOTAL = { sui:0, tang:0, xuan:0 };
+ALL.forEach(x=>TOTAL[x.e]++);
+
+/* ===== mode1 state ===== */
+let remaining=[], placed={sui:[],tang:[],xuan:[]};
+let selectedId=null, wrongCount=0, startTime=null, filterCat='全部';
+
+/* ===== mode2 state ===== */
+let qOrder=[], qIdx=0, qWrong=0;
+
+function shuffle(a){ const b=a.slice(); for(let i=b.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [b[i],b[j]]=[b[j],b[i]]; } return b; }
+function matchCat(x){ return filterCat==='全部' || x.c===filterCat; }
+function visibleRemaining(){ return remaining.filter(matchCat); }
+function visibleTotal(){ return ALL.filter(matchCat).length; }
+
+/* ================= MODE 1 ================= */
+function render(){
+  Object.keys(EMPERORS).forEach(k=>{
+    const col = document.getElementById('collected-'+k);
+    col.innerHTML = '';
+    placed[k].forEach(it=>{
+      const chip = document.createElement('span');
+      chip.className = 'chip';
+      chip.style.borderColor = EMPERORS[k].color;
+      chip.style.background = EMPERORS[k].soft;
+      chip.textContent = it.t;
+      col.appendChild(chip);
+    });
+    document.getElementById('count-'+k).textContent = placed[k].length;
+    document.getElementById('tot-'+k).textContent = TOTAL[k];
+  });
+  const pool = document.getElementById('pool');
+  pool.innerHTML = '';
+  visibleRemaining().forEach(it=>{
+    const c = document.createElement('button');
+    c.type = 'button';
+    c.className = 'card';
+    c.dataset.id = it.id;
+    c.draggable = true;
+    c.innerHTML = '<span class="cardtext">'+it.t+'</span><span class="tag">'+it.c+'</span>';
+    c.addEventListener('click', ()=>selectCard(it.id));
+    c.addEventListener('dragstart', (e)=>{ e.dataTransfer.setData('text/plain', String(it.id)); e.dataTransfer.effectAllowed='move'; });
+    pool.appendChild(c);
+  });
+  updateSelHint();
+  updateStats();
+}
+function updateSelHint(){
+  const el = document.getElementById('sel-hint');
+  if(selectedId == null){ el.innerHTML = '點選一張卡，再點選對應的皇帝'; }
+  else { const it = remaining.find(x=>x.id===selectedId); el.innerHTML = it ? '已選取：<b>「'+it.t+'」</b> → 點一位皇帝放入' : ''; }
+}
+function updateStats(){
+  document.getElementById('stat-remaining').textContent = visibleRemaining().length;
+  document.getElementById('stat-total').textContent = visibleTotal();
+  document.getElementById('stat-wrong').textContent = wrongCount;
+}
+function selectCard(id){
+  if(selectedId === id){ selectedId = null; } else { selectedId = id; }
+  document.querySelectorAll('.card').forEach(c=>c.classList.toggle('selected', +c.dataset.id === selectedId));
+  updateSelHint();
+}
+function placeCard(k){
+  const sel = remaining.find(x=>x.id === selectedId);
+  if(!sel){ toast('請先點選一張卡'); return; }
+  if(sel.e === k){
+    remaining = remaining.filter(x=>x.id !== sel.id);
+    placed[k].push(sel);
+    selectedId = null;
+    render();
+    flashBucket(k);
+    playSound('ok');
+    if(remaining.length === 0) celebrate();
+    else if(visibleRemaining().length === 0 && filterCat !== '全部') toast('✅ 「'+filterCat+'」範疇全部完成！');
+  } else {
+    wrongCount++;
+    selectedId = null;
+    document.querySelectorAll('.card').forEach(c=>c.classList.remove('selected'));
+    shakeBucket(k);
+    toast('「'+sel.t+'」不屬於 '+EMPERORS[k].name+'，再試一次');
+    playSound('no');
+    updateSelHint();
+    updateStats();
+  }
+}
+function flashBucket(k){
+  const b = document.querySelector('.bucket[data-e="'+k+'"]');
+  b.classList.add('flashok');
+  setTimeout(()=>b.classList.remove('flashok'), 650);
+}
+function shakeBucket(k){
+  const b = document.querySelector('.bucket[data-e="'+k+'"]');
+  b.classList.add('shake');
+  setTimeout(()=>b.classList.remove('shake'), 450);
+}
+function celebrate(){
+  const sec = Math.round((Date.now()-startTime)/1000);
+  document.getElementById('final-wrong').textContent = wrongCount;
+  document.getElementById('final-time').textContent = sec;
+  document.getElementById('overlay').classList.remove('hidden');
+  playSound('win');
+}
+
+/* ================= MODE 2 ================= */
+function renderMode2(){
+  const item = SHARED[qOrder[qIdx]];
+  document.getElementById('q-prog').textContent = '第 '+(qIdx+1)+' / '+SHARED.length+' 題';
+  document.getElementById('q-prog-pill').textContent = (qIdx+1);
+  document.getElementById('q-title').textContent = item.t;
+  document.getElementById('q-note').classList.add('hidden');
+  document.getElementById('q-next').classList.add('hidden');
+  document.getElementById('q-done').classList.add('hidden');
+  document.getElementById('q-note').innerHTML = item.note;
+  document.getElementById('q-stage1').classList.remove('hidden','dimmed');
+  document.getElementById('q-stage2').classList.remove('hidden');
+  document.getElementById('q-stage2').classList.add('dimmed');
+  buildStage(1); buildStage(2);
+  updateMode2Stats();
+}
+function buildStage(s){
+  const wrap = document.getElementById('q-btns-'+s);
+  wrap.innerHTML = '';
+  ['sui','tang','xuan'].forEach(k=>{
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'btn qbtn';
+    b.innerHTML = '<span class="avatar">'+AVATARS[k]+'</span>'+EMPERORS[k].name;
+    b.addEventListener('click', ()=>answer(s,k,b));
+    wrap.appendChild(b);
+  });
+}
+function answer(s,k,btn){
+  const item = SHARED[qOrder[qIdx]];
+  const correct = s===1 ? item.creator : item.reformer;
+  if(k === correct){
+    btn.classList.add('correct');
+    Array.from(btn.parentElement.children).forEach(c=>c.disabled=true);
+    playSound('ok');
+    if(s===1){
+      document.getElementById('q-stage2').classList.remove('dimmed');
+    } else {
+      document.getElementById('q-note').classList.remove('hidden');
+      document.getElementById('q-next').classList.remove('hidden');
+      playSound('ok');
+    }
+  } else {
+    qWrong++;
+    btn.classList.add('wrongbtn');
+    setTimeout(()=>btn.classList.remove('wrongbtn'), 500);
+    toast('「'+EMPERORS[k].name+'」不是'+(s===1?'創立／推行':'改良／完善')+'者，再試一次');
+    playSound('no');
+    updateMode2Stats();
+  }
+}
+function nextQ(){
+  qIdx++;
+  if(qIdx >= SHARED.length){
+    document.getElementById('q-prog-pill').textContent = SHARED.length;
+    document.getElementById('q-done-wrong').textContent = qWrong;
+    document.getElementById('q-done').classList.remove('hidden');
+    document.getElementById('q-note').classList.add('hidden');
+    document.getElementById('q-next').classList.add('hidden');
+    document.getElementById('q-stage1').classList.add('hidden');
+    document.getElementById('q-stage2').classList.add('hidden');
+    document.getElementById('q-title').textContent = '';
+    document.getElementById('q-prog').textContent = '';
+    playSound('win');
+  } else {
+    renderMode2();
+  }
+}
+function updateMode2Stats(){
+  document.getElementById('q-wrong-pill').textContent = qWrong;
+}
+function resetMode2(){
+  qOrder = shuffle([0,1,2,3,4,5]);
+  qIdx = 0; qWrong = 0;
+  document.getElementById('q-stage1').classList.remove('hidden');
+  document.getElementById('q-stage2').classList.remove('hidden');
+  renderMode2();
+}
+
+/* ================= 模式切換 ================= */
+function switchMode(m){
+  document.getElementById('mode1').classList.toggle('hidden', m!=='mode1');
+  document.getElementById('mode2').classList.toggle('hidden', m!=='mode2');
+  document.getElementById('stats-m1').classList.toggle('hidden', m!=='mode1');
+  document.getElementById('stats-m2').classList.toggle('hidden', m!=='mode2');
+  document.getElementById('tab-m1').classList.toggle('active', m==='mode1');
+  document.getElementById('tab-m2').classList.toggle('active', m==='mode2');
+}
+
+/* ================= 音效 ================= */
+let audioCtx;
+function ensureAudio(){ if(!audioCtx){ audioCtx = new (window.AudioContext||window.webkitAudioContext)(); } }
+function tone(freq, t0, dur, type, gain){
+  const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+  o.type = type || 'sine'; o.frequency.value = freq;
+  g.gain.setValueAtTime(gain||0.08, t0);
+  g.gain.exponentialRampToValueAtTime(0.0001, t0+dur);
+  o.connect(g); g.connect(audioCtx.destination);
+  o.start(t0); o.stop(t0+dur);
+}
+function playSound(kind){
+  try{
+    ensureAudio(); const t = audioCtx.currentTime;
+    if(kind==='ok'){ tone(660,t,0.12); tone(880,t+0.1,0.16); }
+    else if(kind==='no'){ tone(150,t,0.28,'sawtooth',0.045); }
+    else { [523,659,784,1047].forEach((f,i)=>tone(f,t+i*0.09,0.18)); }
+  }catch(e){}
+}
+
+function toast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(t._tm);
+  t._tm = setTimeout(()=>t.classList.remove('show'), 1800);
+}
+
+/* ================= 初始化 ================= */
+function initMode1(){
+  remaining = shuffle(ALL.map(x=>({...x})));
+  placed = { sui:[], tang:[], xuan:[] };
+  selectedId = null; wrongCount = 0; startTime = Date.now();
+  render();
+  document.getElementById('overlay').classList.add('hidden');
+}
+function initAvatars(){
+  ['sui','tang','xuan'].forEach(k=>{
+    document.getElementById('av-'+k).innerHTML = AVATARS[k];
+  });
+}
+
+/* ===== events ===== */
+document.getElementById('buckets').addEventListener('click', e=>{
+  const b = e.target.closest('.bucket');
+  if(b) placeCard(b.dataset.e);
+});
+document.querySelectorAll('.bucket').forEach(b=>{
+  b.addEventListener('dragover', e=>{ e.preventDefault(); b.classList.add('hover'); });
+  b.addEventListener('dragleave', ()=>b.classList.remove('hover'));
+  b.addEventListener('drop', e=>{
+    e.preventDefault(); b.classList.remove('hover');
+    const id = +e.dataTransfer.getData('text/plain');
+    if(!isNaN(id)){ selectCard(id); placeCard(b.dataset.e); }
+  });
+});
+document.querySelectorAll('.cat').forEach(b=>{
+  b.addEventListener('click', ()=>{
+    filterCat = b.dataset.cat;
+    document.querySelectorAll('.cat').forEach(x=>x.classList.toggle('active', x===b));
+    selectedId = null;
+    render();
+  });
+});
+document.getElementById('btn-reset').addEventListener('click', initMode1);
+document.getElementById('btn-again').addEventListener('click', ()=>{ document.getElementById('overlay').classList.add('hidden'); initMode1(); });
+document.getElementById('btn-m2-again').addEventListener('click', resetMode2);
+document.getElementById('q-next').addEventListener('click', nextQ);
+document.getElementById('tab-m1').addEventListener('click', ()=>switchMode('mode1'));
+document.getElementById('tab-m2').addEventListener('click', ()=>switchMode('mode2'));
+
+initAvatars();
+initMode1();
+resetMode2();
+</script>
+</body>
+</html>
